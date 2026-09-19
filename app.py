@@ -320,19 +320,27 @@ with st.sidebar:
     with col_gd1:
         st.metric("Iterace", st.session_state.iteration)
     with col_gd2:
-        st.metric("Aktuální MSE", f"{current_mse:.4f}")
+        if current_mse > 9999:
+            mse_str = f"{current_mse:.1e}"
+        elif current_mse > 99:
+            mse_str = f"{current_mse:.1f}"
+        else:
+            mse_str = f"{current_mse:.3f}"
+        st.metric("Aktuální MSE", mse_str)
 
-    st.caption(f"Gradienty: ∂MSE/∂β₀ = `{grad_b0:+.3f}`, ∂MSE/∂β₁ = `{grad_b1:+.3f}`")
+    st.caption(f"Gradienty: ∂MSE/∂β₀ = `{grad_b0:+.2f}`, ∂MSE/∂β₁ = `{grad_b1:+.2f}`")
 
+    # Tlačítka kroků s čistým nadpisem a čísly bez zalamování
+    st.markdown("**Počet kroků (krokovat o):**")
     col_s1, col_s2, col_s3, col_s4 = st.columns(4)
     with col_s1:
-        st.button("▶️ +1", on_click=lambda: step_gradient_descent(1), width="stretch", help="Provést 1 krok")
+        st.button("+1", on_click=lambda: step_gradient_descent(1), width="stretch", help="Provést 1 krok")
     with col_s2:
-        st.button("⏩ +10", on_click=lambda: step_gradient_descent(10), width="stretch", help="Provést 10 kroků")
+        st.button("+10", on_click=lambda: step_gradient_descent(10), width="stretch", help="Provést 10 kroků")
     with col_s3:
-        st.button("⚡ +30", on_click=lambda: step_gradient_descent(30), width="stretch", help="Provést 30 kroků")
+        st.button("+30", on_click=lambda: step_gradient_descent(30), width="stretch", help="Provést 30 kroků")
     with col_s4:
-        st.button("🚀 +100", on_click=lambda: step_gradient_descent(100), width="stretch", help="Provést 100 kroků")
+        st.button("+100", on_click=lambda: step_gradient_descent(100), width="stretch", help="Provést 100 kroků")
 
     if st.button("↺ Vynulovat iterace GD", on_click=reset_gd_only, width="stretch"):
         pass
