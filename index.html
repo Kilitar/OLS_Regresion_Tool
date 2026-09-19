@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Metoda nejmenších čtverců (OLS) | Interaktivní simulátor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    code, .font-mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div>
+        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 mb-2">
+          <span>📐 Interaktivní lineární regrese</span>
+        </div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Metoda nejmenších čtverců (OLS)</h1>
+        <p class="text-sm text-slate-500 mt-1">
+          Hledejte přímku, která minimalizuje celkový součet ploch červených čtverců chyb ($e_i^2$).
+        </p>
+      </div>
+
+      <!-- Live metrics top bar -->
+      <div class="flex items-center gap-3">
+        <div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
+          <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Aktuální SSE</div>
+          <div id="statCurrentSSE" class="text-xl font-mono font-bold text-blue-600">0.000</div>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5">
+          <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Optimum Min OLS</div>
+          <div id="statMinSSE" class="text-xl font-mono font-bold text-emerald-800">0.000</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main visualizer canvas card -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+      <!-- Toolbar & Preset selection -->
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Scénář dat:</label>
+          <select id="presetSelect" class="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="default">Výchozí vzorová data</option>
+            <option value="outlier">Vliv odlehlé hodnoty (Outlier)</option>
+            <option value="strong">Silná korelace</option>
+            <option value="flat">Mírný rozptyl</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-3 text-sm">
+          <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="checkSquares" checked class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500">
+            <span class="text-slate-700 font-medium">Zobrazit čtverce chyb ($e_i^2$)</span>
+          </label>
+          <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="checkOptLine" class="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-emerald-500">
+            <span class="text-slate-700 font-medium">Referenční OLS přímka</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- SVG Graph Canvas -->
+      <div class="w-full bg-slate-50/70 border border-slate-200/80 rounded-xl p-3 flex justify-center">
+        <svg id="chartSvg" viewBox="0 0 700 450" class="w-full max-w-2xl h-auto select-none"></svg>
+      </div>
+
+      <!-- Controls for Slope and Intercept -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+        <div class="space-y-2">
+          <div class="flex justify-between items-center text-sm">
+            <span class="font-semibold text-slate-700">Směrnice přímky (Slope, &beta;₁)</span>
+            <span id="labelSlope" class="font-mono px-2 py-0.5 bg-white border border-slate-200 rounded text-slate-800 font-bold">0.80</span>
+          </div>
+          <input type="range" id="sliderSlope" min="-1.5" max="2.5" step="0.02" value="0.80"
+            class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+          <div class="flex justify-between text-[11px] text-slate-400 font-mono">
+            <span>-1.50</span>
+            <span>0.00</span>
+            <span>+2.50</span>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex justify-between items-center text-sm">
+            <span class="font-semibold text-slate-700">Posun na ose Y (Intercept, &beta;₀)</span>
+            <span id="labelIntercept" class="font-mono px-2 py-0.5 bg-white border border-slate-200 rounded text-slate-800 font-bold">1.20</span>
+          </div>
+          <input type="range" id="sliderIntercept" min="-2.0" max="6.0" step="0.05" value="1.20"
+            class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+          <div class="flex justify-between text-[11px] text-slate-400 font-mono">
+            <span>-2.00</span>
+            <span>+2.00</span>
+            <span>+6.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons and Formula Status -->
+      <div class="flex flex-wrap items-center justify-between gap-4 pt-2">
+        <div class="text-sm font-mono text-slate-600">
+          Rovnice: <span id="currentEquation" class="font-bold text-blue-600">ŷ = 0.80x + 1.20</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnReset" class="px-3.5 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg transition-colors shadow-sm">
+            ↺ Reset
+          </button>
+          <button id="btnSnapOptimal" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
+            <span>🎯 Nastavit optimální OLS přímku</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Educational & Details Card -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+      <h2 class="text-lg font-bold text-slate-900">Jak funguje minimalizace součtu čtverců?</h2>
+      <p class="text-sm text-slate-600 leading-relaxed">
+        Pro každý datový bod $(x_i, y_i)$ počítáme vertikální odchylku $e_i = y_i - \hat{y}_i$.
+        Čtverec této odchylky $e_i^2$ představuje plochu skutečného geometrického čtverce se stranou $|e_i|$.
+        Metoda nejmenších čtverců (OLS) nalezne přímku, pro kterou je celkový součet ploch všech těchto čtverců minimální.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+          <div class="text-slate-400 uppercase text-[10px]">Optimální směrnice</div>
+          <div class="text-slate-800 font-bold mt-1">&beta;₁ = Cov(X,Y) / Var(X)</div>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+          <div class="text-slate-400 uppercase text-[10px]">Optimální posun</div>
+          <div class="text-slate-800 font-bold mt-1">&beta;₀ = ȳ - &beta;₁ x̄</div>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+          <div class="text-slate-400 uppercase text-[10px]">Cílové kritérium</div>
+          <div class="text-slate-800 font-bold mt-1">min &Sigma; (yᵢ - ŷᵢ)²</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PRESETS = {
+      default: [
+        { x: 1, y: 2.2 }, { x: 2, y: 2.8 }, { x: 3, y: 4.5 },
+        { x: 4, y: 3.8 }, { x: 5, y: 5.8 }, { x: 6, y: 5.2 }, { x: 7, y: 7.1 }
+      ],
+      outlier: [
+        { x: 1, y: 2.0 }, { x: 2, y: 2.7 }, { x: 3, y: 3.9 },
+        { x: 4, y: 4.8 }, { x: 5, y: 6.1 }, { x: 6, y: 1.2 }, { x: 7, y: 8.0 }
+      ],
+      strong: [
+        { x: 1, y: 1.9 }, { x: 2, y: 3.1 }, { x: 3, y: 4.0 },
+        { x: 4, y: 5.2 }, { x: 5, y: 6.0 }, { x: 6, y: 7.1 }, { x: 7, y: 8.9 }
+      ],
+      flat: [
+        { x: 1, y: 3.5 }, { x: 2, y: 4.0 }, { x: 3, y: 3.8 },
+        { x: 4, y: 4.2 }, { x: 5, y: 4.1 }, { x: 6, y: 4.5 }, { x: 7, y: 4.4 }
+      ]
+    };
+
+    let points = [...PRESETS.default];
+    let slope = 0.80;
+    let intercept = 1.20;
+    let showSquares = true;
+    let showOptLine = false;
+
+    // SVG geometry
+    const svg = document.getElementById('chartSvg');
+    const width = 700;
+    const height = 450;
+    const margin = { top: 25, right: 35, bottom: 45, left: 50 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+
+    const xMin = 0, xMax = 8;
+    const yMin = 0, yMax = 9;
+
+    const scaleX = (x) => margin.left + ((x - xMin) / (xMax - xMin)) * innerWidth;
+    const scaleY = (y) => margin.top + innerHeight - ((y - yMin) / (yMax - yMin)) * innerHeight;
+
+    const pxPerUnitX = innerWidth / (xMax - xMin);
+    const pxPerUnitY = innerHeight / (yMax - yMin);
+
+    function computeOptimalOLS(pts) {
+      const n = pts.length;
+      const sumX = pts.reduce((acc, p) => acc + p.x, 0);
+      const sumY = pts.reduce((acc, p) => acc + p.y, 0);
+      const meanX = sumX / n;
+      const meanY = sumY / n;
+
+      const num = pts.reduce((acc, p) => acc + (p.x - meanX) * (p.y - meanY), 0);
+      const den = pts.reduce((acc, p) => acc + Math.pow(p.x - meanX, 2), 0);
+
+      const optSlope = den === 0 ? 0 : num / den;
+      const optIntercept = meanY - optSlope * meanX;
+
+      const minSSE = pts.reduce((acc, p) => {
+        const yPred = optSlope * p.x + optIntercept;
+        return acc + Math.pow(p.y - yPred, 2);
+      }, 0);
+
+      return { optSlope, optIntercept, minSSE };
+    }
+
+    function render() {
+      const optimal = computeOptimalOLS(points);
+      const currentSSE = points.reduce((acc, p) => {
+        const yPred = slope * p.x + intercept;
+        return acc + Math.pow(p.y - yPred, 2);
+      }, 0);
+
+      document.getElementById('statCurrentSSE').innerText = currentSSE.toFixed(3);
+      document.getElementById('statMinSSE').innerText = optimal.minSSE.toFixed(3);
+      document.getElementById('labelSlope').innerText = slope.toFixed(2);
+      document.getElementById('labelIntercept').innerText = intercept.toFixed(2);
+      document.getElementById('currentEquation').innerText = `ŷ = ${slope.toFixed(2)}x + ${intercept >= 0 ? '+' : ''}${intercept.toFixed(2)}`;
+
+      let svgHtml = '';
+
+      // Grid lines & labels
+      for (let xVal = xMin; xVal <= xMax; xVal++) {
+        svgHtml += `
+          <line x1="${scaleX(xVal)}" y1="${scaleY(yMin)}" x2="${scaleX(xVal)}" y2="${scaleY(yMax)}" stroke="#f1f5f9" stroke-width="1.5" />
+          <text x="${scaleX(xVal)}" y="${scaleY(yMin) + 22}" font-size="12" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono">${xVal}</text>
+        `;
+      }
+      for (let yVal = yMin; yVal <= yMax; yVal++) {
+        svgHtml += `
+          <line x1="${scaleX(xMin)}" y1="${scaleY(yVal)}" x2="${scaleX(xMax)}" y2="${scaleY(yVal)}" stroke="#f1f5f9" stroke-width="1.5" />
+          <text x="${scaleX(xMin) - 12}" y="${scaleY(yVal) + 4}" font-size="12" text-anchor="end" fill="#94a3b8" font-family="JetBrains Mono">${yVal}</text>
+        `;
+      }
+
+      // Main Axes
+      svgHtml += `
+        <line x1="${scaleX(xMin)}" y1="${scaleY(yMin)}" x2="${scaleX(xMax)}" y2="${scaleY(yMin)}" stroke="#cbd5e1" stroke-width="2" />
+        <line x1="${scaleX(xMin)}" y1="${scaleY(yMin)}" x2="${scaleX(xMin)}" y2="${scaleY(yMax)}" stroke="#cbd5e1" stroke-width="2" />
+      `;
+
+      // Geometric Squares & Residuals
+      points.forEach((pt) => {
+        const yPred = slope * pt.x + intercept;
+        const diff = pt.y - yPred;
+        const pxX = scaleX(pt.x);
+        const pxY = scaleY(pt.y);
+        const pxYPred = scaleY(yPred);
+
+        const sidePxY = Math.abs(pxY - pxYPred);
+        const sidePxX = Math.abs(diff) * pxPerUnitX;
+        const rectX = pxX;
+        const rectY = Math.min(pxY, pxYPred);
+
+        if (showSquares) {
+          svgHtml += `
+            <rect x="${rectX}" y="${rectY}" width="${sidePxX}" height="${sidePxY}"
+              fill="#ef4444" fill-opacity="0.18" stroke="#ef4444" stroke-width="1.2" stroke-dasharray="3 3" />
+          `;
+        }
+
+        // Vertical residual segment
+        svgHtml += `
+          <line x1="${pxX}" y1="${pxY}" x2="${pxX}" y2="${pxYPred}" stroke="#ef4444" stroke-width="2.5" />
+        `;
+      });
+
+      // Optional reference optimal OLS line
+      if (showOptLine) {
+        svgHtml += `
+          <line x1="${scaleX(xMin)}" y1="${scaleY(optimal.optSlope * xMin + optimal.optIntercept)}"
+                x2="${scaleX(xMax)}" y2="${scaleY(optimal.optSlope * xMax + optimal.optIntercept)}"
+                stroke="#10b981" stroke-width="2.5" stroke-dasharray="6 6" />
+        `;
+      }
+
+      // User regression line
+      svgHtml += `
+        <line x1="${scaleX(xMin)}" y1="${scaleY(slope * xMin + intercept)}"
+              x2="${scaleX(xMax)}" y2="${scaleY(slope * xMax + intercept)}"
+              stroke="#2563eb" stroke-width="3" stroke-linecap="round" />
+      `;
+
+      // Data points
+      points.forEach((pt) => {
+        svgHtml += `
+          <circle cx="${scaleX(pt.x)}" cy="${scaleY(pt.y)}" r="5.5" fill="#0f172a" stroke="#ffffff" stroke-width="2" />
+        `;
+      });
+
+      svg.innerHTML = svgHtml;
+    }
+
+    // Event handlers
+    const sliderSlope = document.getElementById('sliderSlope');
+    const sliderIntercept = document.getElementById('sliderIntercept');
+    const presetSelect = document.getElementById('presetSelect');
+    const checkSquares = document.getElementById('checkSquares');
+    const checkOptLine = document.getElementById('checkOptLine');
+    const btnSnapOptimal = document.getElementById('btnSnapOptimal');
+    const btnReset = document.getElementById('btnReset');
+
+    sliderSlope.addEventListener('input', (e) => {
+      slope = parseFloat(e.target.value);
+      render();
+    });
+
+    sliderIntercept.addEventListener('input', (e) => {
+      intercept = parseFloat(e.target.value);
+      render();
+    });
+
+    checkSquares.addEventListener('change', (e) => {
+      showSquares = e.target.checked;
+      render();
+    });
+
+    checkOptLine.addEventListener('change', (e) => {
+      showOptLine = e.target.checked;
+      render();
+    });
+
+    btnSnapOptimal.addEventListener('click', () => {
+      const opt = computeOptimalOLS(points);
+      slope = parseFloat(opt.optSlope.toFixed(2));
+      intercept = parseFloat(opt.optIntercept.toFixed(2));
+      sliderSlope.value = slope;
+      sliderIntercept.value = intercept;
+      render();
+    });
+
+    btnReset.addEventListener('click', () => {
+      slope = 0.80;
+      intercept = 1.20;
+      sliderSlope.value = slope;
+      sliderIntercept.value = intercept;
+      render();
+    });
+
+    presetSelect.addEventListener('change', (e) => {
+      points = [...PRESETS[e.target.value]];
+      render();
+    });
+
+    // Initial render
+    render();
+  </script>
+</body>
+</html>
