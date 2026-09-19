@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Metoda nejmenších čtverců (OLS) | Interaktivní simulátor</title>
+  <title>Metoda nejmenších čtverců & Gradientní sestup | Interaktivní simulátor</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,11 +20,11 @@
     <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
       <div>
         <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 mb-2">
-          <span>📐 Interaktivní lineární regrese</span>
+          <span>📐 OLS & ⚡ Gradient Descent</span>
         </div>
-        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Metoda nejmenších čtverců (OLS)</h1>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Metoda nejmenších čtverců & Gradientní sestup</h1>
         <p class="text-sm text-slate-500 mt-1">
-          Hledejte přímku, která minimalizuje celkový součet ploch červených čtverců chyb ($e_i^2$).
+          Hledejte optimální přímku manuálně, analytickým vzorcem (OLS), nebo sledujte živý gradientní sestup.
         </p>
       </div>
 
@@ -104,7 +104,7 @@
       </div>
 
       <!-- Action Buttons and Formula Status -->
-      <div class="flex flex-wrap items-center justify-between gap-4 pt-2">
+      <div class="flex flex-wrap items-center justify-between gap-4 pt-2 border-b border-slate-100 pb-4">
         <div class="text-sm font-mono text-slate-600">
           Rovnice: <span id="currentEquation" class="font-bold text-blue-600">ŷ = 0.80x + 1.20</span>
         </div>
@@ -113,32 +113,85 @@
             ↺ Reset
           </button>
           <button id="btnSnapOptimal" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
-            <span>🎯 Nastavit optimální OLS přímku</span>
+            <span>🎯 Nastavit optimální OLS</span>
           </button>
         </div>
       </div>
+
+      <!-- GRADIENT DESCENT SECTION -->
+      <div class="bg-gradient-to-r from-purple-50/70 to-indigo-50/70 border border-purple-100 rounded-xl p-4 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">⚡</span>
+            <div>
+              <h3 class="font-bold text-slate-900 text-sm">Gradientní sestup (Gradient Descent)</h3>
+              <p class="text-xs text-slate-500">Iterativní minimalizace chybové funkce MSE</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 text-xs font-mono">
+            <div class="bg-white/80 px-2.5 py-1 rounded border border-purple-200 text-purple-900 font-semibold">
+              Iterace: <span id="gdIteration">0</span>
+            </div>
+            <div class="bg-white/80 px-2.5 py-1 rounded border border-purple-200 text-slate-700">
+              MSE: <span id="gdMSE">0.000</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs">
+              <span class="font-medium text-slate-700">Rychlost učení (&alpha;, Learning Rate)</span>
+              <span id="labelLR" class="font-mono font-bold text-purple-700">0.020</span>
+            </div>
+            <input type="range" id="sliderLR" min="0.002" max="0.080" step="0.002" value="0.020"
+              class="w-full h-1.5 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-600">
+          </div>
+
+          <div class="flex items-center gap-2 justify-start sm:justify-end">
+            <button id="btnTogglePlay" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
+              <span id="playIcon">▶</span>
+              <span id="playText">Spustit animaci</span>
+            </button>
+            <button id="btnStep1" class="px-3 py-2 bg-white hover:bg-purple-50 border border-purple-200 text-purple-900 text-xs font-semibold rounded-lg transition-colors shadow-sm">
+              +1 krok
+            </button>
+            <button id="btnStep20" class="px-3 py-2 bg-white hover:bg-purple-50 border border-purple-200 text-purple-900 text-xs font-semibold rounded-lg transition-colors shadow-sm">
+              +20 kroků
+            </button>
+            <button id="btnResetGD" title="Vynulovat čítač iterací" class="px-2.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 text-xs rounded-lg">
+              ↺
+            </button>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Educational & Details Card -->
     <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-      <h2 class="text-lg font-bold text-slate-900">Jak funguje minimalizace součtu čtverců?</h2>
-      <p class="text-sm text-slate-600 leading-relaxed">
-        Pro každý datový bod $(x_i, y_i)$ počítáme vertikální odchylku $e_i = y_i - \hat{y}_i$.
-        Čtverec této odchylky $e_i^2$ představuje plochu skutečného geometrického čtverce se stranou $|e_i|$.
-        Metoda nejmenších čtverců (OLS) nalezne přímku, pro kterou je celkový součet ploch všech těchto čtverců minimální.
-      </p>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
-        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
-          <div class="text-slate-400 uppercase text-[10px]">Optimální směrnice</div>
-          <div class="text-slate-800 font-bold mt-1">&beta;₁ = Cov(X,Y) / Var(X)</div>
+      <h2 class="text-lg font-bold text-slate-900">Srovnání OLS vs. Gradientní sestup</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-600 leading-relaxed">
+        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+          <div class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+            <span>📐</span> Analytická metoda OLS
+          </div>
+          <p>Nalezne přesné globální minimum v jediném kroku analytickým výpočtem průměrů a kovariance (normální rovnice).</p>
+          <div class="font-mono bg-white p-2 rounded border border-slate-200 text-slate-800">
+            &beta;₁ = Cov(X,Y) / Var(X)<br>
+            &beta;₀ = ȳ - &beta;₁ x̄
+          </div>
         </div>
-        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
-          <div class="text-slate-400 uppercase text-[10px]">Optimální posun</div>
-          <div class="text-slate-800 font-bold mt-1">&beta;₀ = ȳ - &beta;₁ x̄</div>
-        </div>
-        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
-          <div class="text-slate-400 uppercase text-[10px]">Cílové kritérium</div>
-          <div class="text-slate-800 font-bold mt-1">min &Sigma; (yᵢ - ŷᵢ)²</div>
+
+        <div class="p-4 bg-purple-50/50 rounded-xl border border-purple-100 space-y-2">
+          <div class="font-bold text-purple-900 text-sm flex items-center gap-1.5">
+            <span>⚡</span> Gradientní sestup (Gradient Descent)
+          </div>
+          <p>Iterativní optimalizace, která v každém kroku posune váhy v záporném směru parciálních derivací ztrátové funkce MSE.</p>
+          <div class="font-mono bg-white p-2 rounded border border-purple-200 text-purple-900">
+            &beta;₀ &larr; &beta;₀ - &alpha; &middot; (2/n) &Sigma; (ŷᵢ - yᵢ)<br>
+            &beta;₁ &larr; &beta;₁ - &alpha; &middot; (2/n) &Sigma; (ŷᵢ - yᵢ) xᵢ
+          </div>
         </div>
       </div>
     </div>
@@ -169,6 +222,12 @@
     let intercept = 1.20;
     let showSquares = true;
     let showOptLine = false;
+
+    // Gradient Descent stav
+    let learningRate = 0.020;
+    let isRunning = false;
+    let iteration = 0;
+    let gdTimer = null;
 
     // SVG geometry
     const svg = document.getElementById('chartSvg');
@@ -208,18 +267,46 @@
       return { optSlope, optIntercept, minSSE };
     }
 
+    // Jeden krok gradientního sestupu
+    function stepGradientDescent() {
+      const n = points.length;
+      if (n === 0) return;
+
+      let dBeta0 = 0;
+      let dBeta1 = 0;
+
+      points.forEach((p) => {
+        const yPred = slope * p.x + intercept;
+        const error = yPred - p.y;
+        dBeta0 += (2 / n) * error;
+        dBeta1 += (2 / n) * error * p.x;
+      });
+
+      intercept -= learningRate * dBeta0;
+      slope -= learningRate * dBeta1;
+      iteration += 1;
+
+      sliderSlope.value = slope;
+      sliderIntercept.value = intercept;
+      render();
+    }
+
     function render() {
       const optimal = computeOptimalOLS(points);
       const currentSSE = points.reduce((acc, p) => {
         const yPred = slope * p.x + intercept;
         return acc + Math.pow(p.y - yPred, 2);
       }, 0);
+      const currentMSE = currentSSE / points.length;
 
       document.getElementById('statCurrentSSE').innerText = currentSSE.toFixed(3);
       document.getElementById('statMinSSE').innerText = optimal.minSSE.toFixed(3);
       document.getElementById('labelSlope').innerText = slope.toFixed(2);
       document.getElementById('labelIntercept').innerText = intercept.toFixed(2);
       document.getElementById('currentEquation').innerText = `ŷ = ${slope.toFixed(2)}x + ${intercept >= 0 ? '+' : ''}${intercept.toFixed(2)}`;
+
+      document.getElementById('gdIteration').innerText = iteration;
+      document.getElementById('gdMSE').innerText = currentMSE.toFixed(4);
 
       let svgHtml = '';
 
@@ -304,6 +391,15 @@
     const btnSnapOptimal = document.getElementById('btnSnapOptimal');
     const btnReset = document.getElementById('btnReset');
 
+    const sliderLR = document.getElementById('sliderLR');
+    const labelLR = document.getElementById('labelLR');
+    const btnTogglePlay = document.getElementById('btnTogglePlay');
+    const playIcon = document.getElementById('playIcon');
+    const playText = document.getElementById('playText');
+    const btnStep1 = document.getElementById('btnStep1');
+    const btnStep20 = document.getElementById('btnStep20');
+    const btnResetGD = document.getElementById('btnResetGD');
+
     sliderSlope.addEventListener('input', (e) => {
       slope = parseFloat(e.target.value);
       render();
@@ -334,15 +430,72 @@
     });
 
     btnReset.addEventListener('click', () => {
+      stopAnimation();
       slope = 0.80;
       intercept = 1.20;
+      iteration = 0;
       sliderSlope.value = slope;
       sliderIntercept.value = intercept;
       render();
     });
 
     presetSelect.addEventListener('change', (e) => {
+      stopAnimation();
       points = [...PRESETS[e.target.value]];
+      iteration = 0;
+      render();
+    });
+
+    // Gradient descent controls
+    sliderLR.addEventListener('input', (e) => {
+      learningRate = parseFloat(e.target.value);
+      labelLR.innerText = learningRate.toFixed(3);
+    });
+
+    function startAnimation() {
+      isRunning = true;
+      playIcon.innerText = '⏸';
+      playText.innerText = 'Pozastavit';
+      btnTogglePlay.classList.replace('bg-purple-600', 'bg-amber-600');
+      btnTogglePlay.classList.replace('hover:bg-purple-700', 'hover:bg-amber-700');
+      gdTimer = setInterval(() => {
+        stepGradientDescent();
+      }, 50); // 20 kroků za sekundu
+    }
+
+    function stopAnimation() {
+      isRunning = false;
+      playIcon.innerText = '▶';
+      playText.innerText = 'Spustit animaci';
+      btnTogglePlay.classList.replace('bg-amber-600', 'bg-purple-600');
+      btnTogglePlay.classList.replace('hover:bg-amber-700', 'hover:bg-purple-700');
+      if (gdTimer) {
+        clearInterval(gdTimer);
+        gdTimer = null;
+      }
+    }
+
+    btnTogglePlay.addEventListener('click', () => {
+      if (isRunning) {
+        stopAnimation();
+      } else {
+        startAnimation();
+      }
+    });
+
+    btnStep1.addEventListener('click', () => {
+      stepGradientDescent();
+    });
+
+    btnStep20.addEventListener('click', () => {
+      for (let i = 0; i < 20; i++) {
+        stepGradientDescent();
+      }
+    });
+
+    btnResetGD.addEventListener('click', () => {
+      stopAnimation();
+      iteration = 0;
       render();
     });
 

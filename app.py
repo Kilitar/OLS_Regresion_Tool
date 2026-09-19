@@ -1,5 +1,5 @@
 """
-Interaktivní vizualizátor Metody nejmenších čtverců (OLS)
+Interaktivní vizualizátor Metody nejmenších čtverců (OLS) a Gradientního sestupu (GD).
 Připraveno pro běh lokálně i online (Streamlit Community Cloud).
 """
 
@@ -7,10 +7,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import time
 
 # Nastavení stránky
 st.set_page_config(
-    page_title="Metoda nejmenších čtverců (OLS) | Interaktivní simulátor",
+    page_title="OLS & Gradientní sestup | Interaktivní simulátor",
     page_icon="📐",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -48,6 +49,9 @@ st.markdown("""
     .current-badge {
         color: #2563eb;
     }
+    .gd-badge {
+        color: #7c3aed;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -76,6 +80,16 @@ if "preset_choice" not in st.session_state:
     st.session_state.preset_choice = "Původní vzorová data (DEFAULT)"
 if "points_df" not in st.session_state:
     st.session_state.points_df = PRESETS[st.session_state.preset_choice].copy()
+if "slope" not in st.session_state:
+    st.session_state.slope = 0.80
+if "intercept" not in st.session_state:
+    st.session_state.intercept = 1.20
+if "iteration" not in st.session_state:
+    st.session_state.iteration = 0
+if "loss_history" not in st.session_state:
+    st.session_state.loss_history = []
+if "learning_rate" not in st.session_state:
+    st.session_state.learning_rate = 0.02
 
 # Funkce pro analytický výpočet OLS
 def compute_ols(df: pd.DataFrame):
@@ -104,16 +118,65 @@ def compute_ols(df: pd.DataFrame):
 
     return slope, intercept, sse, tss, r2
 
+# Funkce pro výpočet gradientů MSE
+def compute_gradients(df: pd.DataFrame, slope: float, intercept: float):
+    x = df["x"].to_numpy()
+    y = df["y"].to_numpy()
+    n = len(x)
+    if n == 0:
+        return 0.0, 0.0, 0.0
+    y_pred = slope * x + intercept
+    error = y_pred - y
+    d_b0 = (2.0 / n) * np.sum(error)
+    d_b1 = (2.0 / n) * np.sum(error * x)
+    mse = np.mean(error ** 2)
+    return float(d_b0), float(d_b1), float(mse)
+
+# Krok gradientního sestupu
+def step_gradient_descent(num_steps=1):
+    x = st.session_state.points_df["x"].to_numpy()
+    y = st.session_state.points_df["y"].to_numpy()
+    n = len(x)
+    if n == 0:
+        return
+
+    lr = st.session_state.learning_rate
+    b0 = st.session_state.intercept
+    b1 = st.session_state.slope
+
+    # Pokud historie začíná, zaznamenáme počáteční stav
+    if len(st.session_state.loss_history) == 0:
+        init_mse = np.mean(((b1 * x + b0) - y) ** 2)
+        st.session_state.loss_history.append(float(init_mse))
+
+    for _ in range(num_steps):
+        y_pred = b1 * x + b0
+        error = y_pred - y
+        d_b0 = (2.0 / n) * np.sum(error)
+        d_b1 = (2.0 / n) * np.sum(error * x)
+
+        b0 -= lr * d_b0
+        b1 -= lr * d_b1
+        st.session_state.iteration += 1
+        new_mse = np.mean(((b1 * x + b0) - y) ** 2)
+        st.session_state.loss_history.append(float(new_mse))
+
+    st.session_state.intercept = float(np.round(b0, 4))
+    st.session_state.slope = float(np.round(b1, 4))
+
 # Výpočet optimálních parametrů pro aktuální data
 opt_slope, opt_intercept, opt_sse, tss, opt_r2 = compute_ols(st.session_state.points_df)
+n_points = len(st.session_state.points_df)
+opt_mse = (opt_sse / n_points) if n_points > 0 else 0.0
 
-# Inicializace slope a intercept, pokud nejsou nastaveny
-if "slope" not in st.session_state:
-    st.session_state.slope = 0.80
-if "intercept" not in st.session_state:
-    st.session_state.intercept = 1.20
+# Aktuální gradienty
+grad_b0, grad_b1, current_mse = compute_gradients(
+    st.session_state.points_df, 
+    st.session_state.slope, 
+    st.session_state.intercept
+)
 
-# Callbacky pro tlačítka a změny stavu
+# Callbacky pro tlačítka
 def snap_to_optimal():
     st.session_state.slope = float(np.round(opt_slope, 3))
     st.session_state.intercept = float(np.round(opt_intercept, 3))
@@ -121,6 +184,12 @@ def snap_to_optimal():
 def reset_to_default():
     st.session_state.slope = 0.80
     st.session_state.intercept = 1.20
+    st.session_state.iteration = 0
+    st.session_state.loss_history = []
+
+def reset_gd_only():
+    st.session_state.iteration = 0
+    st.session_state.loss_history = []
 
 def on_preset_change():
     selected = st.session_state.preset_choice
@@ -129,6 +198,8 @@ def on_preset_change():
         s, i, _, _, _ = compute_ols(st.session_state.points_df)
         st.session_state.slope = float(np.round(s, 2))
         st.session_state.intercept = float(np.round(i, 2))
+        st.session_state.iteration = 0
+        st.session_state.loss_history = []
 
 # ==================== SIDEBAR ====================
 with st.sidebar:
@@ -151,7 +222,7 @@ with st.sidebar:
     slider_min_intercept = min(-5.0, float(np.floor(min(st.session_state.intercept, opt_intercept) - 2.0)))
     slider_max_intercept = max(10.0, float(np.ceil(max(st.session_state.intercept, opt_intercept) + 2.0)))
 
-    # Posuvníky (řízené přímo přes key v session_state)
+    # Posuvníky (řízené přes key v session_state)
     st.slider(
         "Směrnice (Slope, β₁)",
         min_value=slider_min_slope,
@@ -176,6 +247,41 @@ with st.sidebar:
     with col_btn2:
         st.button("🔄 Reset", on_click=reset_to_default, width="stretch", help="Vrátí výchozí hodnoty (0.80, 1.20).")
 
+    # ==================== SEKCE: GRADIENTNÍ SESTUP ====================
+    st.divider()
+    st.subheader("⚡ Gradientní sestup")
+    st.caption("Iterativní učení váhových parametrů minimalizací MSE.")
+
+    st.slider(
+        "Rychlost učení (Learning Rate, α)",
+        min_value=0.001,
+        max_value=0.100,
+        step=0.005,
+        key="learning_rate",
+        help="Velikost kroku v záporném směru gradientu."
+    )
+
+    # Zobrazení stavu GD
+    col_gd1, col_gd2 = st.columns(2)
+    with col_gd1:
+        st.metric("Iterace", st.session_state.iteration)
+    with col_gd2:
+        st.metric("Aktuální MSE", f"{current_mse:.4f}")
+
+    st.caption(f"Gradienty: ∂MSE/∂β₀ = `{grad_b0:+.3f}`, ∂MSE/∂β₁ = `{grad_b1:+.3f}`")
+
+    col_s1, col_s2, col_s3 = st.columns(3)
+    with col_s1:
+        st.button("▶️ 1 krok", on_click=lambda: step_gradient_descent(1), width="stretch")
+    with col_s2:
+        st.button("⏩ 10 kroků", on_click=lambda: step_gradient_descent(10), width="stretch")
+    with col_s3:
+        st.button("⚡ 50 kroků", on_click=lambda: step_gradient_descent(50), width="stretch")
+
+    animate_clicked = st.button("🎬 Animovat konvergenci (30 kroků)", width="stretch", help="Spustí živou smyčku aktualizace přímky.")
+    if st.button("↺ Vynulovat iterace GD", on_click=reset_gd_only, width="stretch"):
+        pass
+
     st.divider()
     st.subheader("Možnosti zobrazení")
     show_squares = st.checkbox("Zobrazit čtverce chyb (eᵢ²)", value=True, help="Vykreslí geometrický čtverec nad každou vertikální odchylkou.")
@@ -191,6 +297,8 @@ with st.sidebar:
                 custom_df = pd.read_csv(uploaded_file)
                 if "x" in custom_df.columns and "y" in custom_df.columns:
                     st.session_state.points_df = custom_df[["x", "y"]].dropna().astype(float)
+                    st.session_state.iteration = 0
+                    st.session_state.loss_history = []
                     st.success(f"Načteno {len(st.session_state.points_df)} bodů!")
                     st.rerun()
                 else:
@@ -200,8 +308,17 @@ with st.sidebar:
 
 # ==================== HLAVNÍ OBSAH ====================
 
-st.title("📐 Metoda nejmenších čtverců (Ordinary Least Squares)")
-st.markdown("Interaktivní simulace lineární regrese. Hledejte parametry přímky tak, aby byl **součet ploch červených čtverců co nejmenší**.")
+st.title("📐 Metoda nejmenších čtverců & Gradientní sestup")
+st.markdown("Interaktivní simulace lineární regrese: srovnejte **analytické řešení (OLS)** s **iterativní optimalizací (Gradient Descent)**.")
+
+# Provedení animace, pokud byla spuštěna
+if animate_clicked:
+    anim_progress = st.progress(0, text="Probíhá animace gradientního sestupu...")
+    for s in range(30):
+        step_gradient_descent(1)
+        anim_progress.progress((s + 1) / 30, text=f"Iterace {st.session_state.iteration} | MSE: {st.session_state.loss_history[-1]:.4f}")
+        time.sleep(0.04)
+    st.rerun()
 
 # Příprava dat a výpočtů pro aktuální přímku
 df = st.session_state.points_df.copy()
@@ -224,7 +341,7 @@ with col_m1:
     <div class="metric-card">
         <div class="metric-title">AKTUÁLNÍ SSE (Součet čtverců)</div>
         <div class="metric-value current-badge">{current_sse:.3f}</div>
-        <div class="metric-sub">Celková plocha čtverců</div>
+        <div class="metric-sub">MSE = {current_mse:.3f}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -233,7 +350,7 @@ with col_m2:
     <div class="metric-card">
         <div class="metric-title">OPTIMÁLNÍ OLS MINIMUM</div>
         <div class="metric-value optimal-badge">{opt_sse:.3f}</div>
-        <div class="metric-sub">Analytické globální minimum</div>
+        <div class="metric-sub">Globální minimum OLS</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -251,9 +368,9 @@ with col_m3:
 with col_m4:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="metric-title">KOEFICIENT DETERMINACE (R²)</div>
-        <div class="metric-value">{current_r2:.3f}</div>
-        <div class="metric-sub">Optimum R²: {opt_r2:.3f}</div>
+        <div class="metric-title">STAV GRADIENTNÍHO SESTUPU</div>
+        <div class="metric-value gd-badge">{st.session_state.iteration} kroků</div>
+        <div class="metric-sub">α = {st.session_state.learning_rate:.3f}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -326,14 +443,14 @@ if show_optimal_line:
         hoverinfo="skip"
     ))
 
-# 4. Aktuální uživatelská regresní přímka
+# 4. Aktuální modelová regresní přímka
 x_line = np.array([x_plot_min, x_plot_max])
 y_cur_line = cur_slope * x_line + cur_intercept
 fig.add_trace(go.Scatter(
     x=x_line,
     y=y_cur_line,
     mode="lines",
-    name=f"Vaše přímka: ŷ = {cur_slope:.2f}x + {cur_intercept:.2f}",
+    name=f"Model: ŷ = {cur_slope:.2f}x + {cur_intercept:.2f}",
     line=dict(color="#2563eb", width=3.5),
     hoverinfo="skip"
 ))
@@ -360,7 +477,7 @@ fig.add_trace(go.Scatter(
 
 # Konfigurace vzhledu grafu
 layout_kwargs = dict(
-    height=550,
+    height=540,
     margin=dict(l=40, r=40, t=30, b=40),
     plot_bgcolor="#f8fafc",
     paper_bgcolor="#ffffff",
@@ -398,16 +515,56 @@ fig.update_layout(**layout_kwargs)
 
 st.plotly_chart(fig, width="stretch")
 
-# Sekce: Tabulka dat a editor
-tab_table, tab_math, tab_deploy = st.tabs([
+# Sekce: Tabulky, Graf konvergence a Teorie
+tab_loss, tab_table, tab_math, tab_deploy = st.tabs([
+    "📉 Konvergence ztráty (Loss Curve)",
     "📊 Tabulka bodů a reziduí", 
-    "📐 Matematické odvození OLS", 
+    "📐 Matematika: OLS vs. Gradient Descent", 
     "🚀 Jak aplikaci nasadit online"
 ])
 
+with tab_loss:
+    st.subheader("Vývoj ztrátové funkce (MSE) v čase")
+    st.caption("Sledujte, jak Gradient Descent postupně konverguje k teoretickému minimu OLS.")
+
+    if len(st.session_state.loss_history) > 1:
+        loss_df = pd.DataFrame({
+            "Iterace": list(range(len(st.session_state.loss_history))),
+            "MSE": st.session_state.loss_history
+        })
+
+        fig_loss = go.Figure()
+        fig_loss.add_trace(go.Scatter(
+            x=loss_df["Iterace"],
+            y=loss_df["MSE"],
+            mode="lines+markers",
+            name="MSE Gradient Descent",
+            line=dict(color="#7c3aed", width=2.5),
+            marker=dict(size=5)
+        ))
+        fig_loss.add_trace(go.Scatter(
+            x=[0, len(st.session_state.loss_history) - 1],
+            y=[opt_mse, opt_mse],
+            mode="lines",
+            name=f"Analytické OLS minimum ({opt_mse:.4f})",
+            line=dict(color="#10b981", width=2, dash="dash")
+        ))
+        fig_loss.update_layout(
+            height=380,
+            margin=dict(l=40, r=40, t=25, b=40),
+            plot_bgcolor="#f8fafc",
+            paper_bgcolor="#ffffff",
+            xaxis=dict(title="Číslo iterace (k)", gridcolor="#f1f5f9"),
+            yaxis=dict(title="Mean Squared Error (MSE)", gridcolor="#f1f5f9"),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_loss, width="stretch")
+    else:
+        st.info("Zatím jste neprovedli žádné kroky gradientního sestupu. Klikněte v postranním panelu na **▶️ 1 krok**, **⏩ 10 kroků** nebo **🎬 Animovat**, abyste viděli křivku učení!")
+
 with tab_table:
     st.subheader("Detailní rozpis reziduí jednotlivých bodů")
-    st.caption("Můžete v tabulce přímo upravit hodnoty nebo přidat nové řádky!")
+    st.caption("Můžete v tabulce přímo upravit hodnoty nebo přidat nové body!")
     
     edited_df = st.data_editor(
         df[["x", "y"]],
@@ -419,6 +576,8 @@ with tab_table:
     # Pokud uživatel změnil data v tabulce, aktualizujeme
     if not edited_df.equals(st.session_state.points_df[["x", "y"]]):
         st.session_state.points_df = edited_df.dropna().astype(float)
+        st.session_state.iteration = 0
+        st.session_state.loss_history = []
         st.rerun()
 
     # Zobrazení výsledků reziduí
@@ -442,33 +601,39 @@ with tab_table:
     )
 
 with tab_math:
-    st.subheader("Proč právě Metoda nejmenších čtverců?")
-    st.markdown(r"""
-    V lineární regresi předpokládáme model ve tvaru:
-    $$y_i = \beta_0 + \beta_1 x_i + \varepsilon_i$$
-
-    Pro danou přímku s parametry $b_0, b_1$ je predikovaná hodnota:
-    $$\hat{y}_i = b_0 + b_1 x_i$$
-
-    Vertikální odchylka (reziduum) je rozdíl mezi skutečnou hodnotou a přímkou:
-    $$e_i = y_i - \hat{y}_i = y_i - (b_0 + b_1 x_i)$$
-
-    ### Cíl metody OLS
-    Cílem je minimalizovat **součet čtverců reziduí** (SSE – *Sum of Squared Errors*):
-    $$SSE(b_0, b_1) = \sum_{i=1}^n e_i^2 = \sum_{i=1}^n \left(y_i - b_0 - b_1 x_i\right)^2$$
-
-    Každý člen $e_i^2$ geometricky představuje **plochu čtverce**, jehož strana má délku rovnu odchylce $|e_i|$.
-    Proto minimalizací SSE minimalizujeme celkovou plochu všech těchto čtverců dohromady.
-
-    ### Analytické řešení (normální rovnice)
-    Položením parciálních derivací $\frac{\partial SSE}{\partial b_0} = 0$ a $\frac{\partial SSE}{\partial b_1} = 0$ získáme jednoznačné optimální hodnoty:
+    st.subheader("Dva přístupy k lineární regresi")
     
-    $$\hat{\beta}_1 = \frac{\sum_{i=1}^n (x_i - \bar{x})(y_i - \bar{y})}{\sum_{i=1}^n (x_i - \bar{x})^2} = \frac{\operatorname{Cov}(X, Y)}{\operatorname{Var}(X)}$$
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        st.markdown(r"""
+        ### 1. Analytické OLS (Normal Equations)
+        Minimalizuje SSE jedním přímým výpočtem:
+        $$SSE(\beta_0, \beta_1) = \sum_{i=1}^n (y_i - \beta_0 - \beta_1 x_i)^2$$
+        
+        Položením parciálních derivací rovno nule získáme globální minimum:
+        $$\hat{\beta}_1 = \frac{\sum (x_i - \bar{x})(y_i - \bar{y})}{\sum (x_i - \bar{x})^2} = \frac{\operatorname{Cov}(X, Y)}{\operatorname{Var}(X)}$$
+        $$\hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x}$$
 
-    $$\hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x}$$
+        - ✅ **Výhoda:** Okamžité, přesné řešení v jediném kroku.
+        - ⚠️ **Nevýhoda:** Pro matici s $d$ dimenzemi vyžaduje inverzi $(X^T X)^{-1}$ se složitostí $\mathcal{O}(d^3)$. Pro obrovské datasety je nepoužitelné.
+        """)
+    with col_t2:
+        st.markdown(r"""
+        ### 2. Gradientní sestup (Gradient Descent)
+        Iterativní optimalizace ztrátové funkce MSE:
+        $$MSE = \frac{1}{n} \sum_{i=1}^n (\hat{y}_i - y_i)^2 = \frac{1}{n} \sum_{i=1}^n (\beta_1 x_i + \beta_0 - y_i)^2$$
 
-    Kde $\bar{x} = \frac{1}{n}\sum x_i$ a $\bar{y} = \frac{1}{n}\sum y_i$ jsou aritmetické průměry.
-    """)
+        Parciální derivace (gradienty):
+        $$\frac{\partial MSE}{\partial \beta_0} = \frac{2}{n} \sum_{i=1}^n (\hat{y}_i - y_i)$$
+        $$\frac{\partial MSE}{\partial \beta_1} = \frac{2}{n} \sum_{i=1}^n (\hat{y}_i - y_i) x_i$$
+
+        Pravidlo aktualizace vah s rychlostí učení $\alpha$:
+        $$\beta_0 \leftarrow \beta_0 - \alpha \frac{\partial MSE}{\partial \beta_0}$$
+        $$\beta_1 \leftarrow \beta_1 - \alpha \frac{\partial MSE}{\partial \beta_1}$$
+
+        - ✅ **Výhoda:** Snadno škáluje na miliardy datových bodů a miliony parametrů (základ hlubokého učení).
+        - ⚠️ **Nevýhoda:** Vyžaduje ladění hyperparametru $\alpha$ (při příliš velkém $\alpha$ diverguje).
+        """)
 
 with tab_deploy:
     st.subheader("Jak nasadit tuto aplikaci online zdarma")
@@ -484,7 +649,7 @@ with tab_deploy:
        - `README.md`
     3. Přejděte na [share.streamlit.io](https://share.streamlit.io) a přihlaste se přes GitHub.
     4. Klikněte na **"New app"**, vyberte váš repozitář a hlavní soubor `app.py`.
-    5. Klikněte na **"Deploy!"** – během 1 minuty dostanete veřejnou URL (např. `https://ols-regression.streamlit.app`), kterou můžete poslat komukoliv.
+    5. Klikněte na **"Deploy!"** – během 1 minuty dostanete veřejnou URL, kterou můžete poslat komukoliv.
 
     #### Možnost 2: Spuštění lokálně
     V terminálu stačí spustit:
