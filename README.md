@@ -1,56 +1,60 @@
-# 📐 Interaktivní vizualizátor Metody nejmenších čtverců (OLS)
+# 📐 Interaktivní vizualizátor Metody nejmenších čtverců (OLS) & Gradientní sestup
 
-Tato aplikace umožňuje interaktivně zkoumat princip **Metody nejmenších čtverců (Ordinary Least Squares - OLS)** v lineární regresi. Uživatel může posouvat a naklápět regresní přímku a v reálném čase sledovat, jak se mění velikost vertikálních odchylek (reziduí) a geometrických čtverců chyb ($e_i^2$).
+Tato aplikace umožňuje interaktivně zkoumat princip **Metody nejmenších čtverců (Ordinary Least Squares - OLS)** a **Gradientního sestupu (Gradient Descent)** v lineární regresi.
+
+Tento repozitář je navržen pro **duální nasazení (Dual Deployment)** – podporuje v jednom projektu jak **Streamlit Cloud**, tak **Vercel**:
+
+| Vlastnost | Case A: Streamlit Cloud | Case B: Vercel (Edge Web App) |
+| :--- | :--- | :--- |
+| **Vstupní soubor** | `app.py` (+ `requirements.txt`) | `index.html` (+ `vercel.json`) |
+| **Běhové prostředí** | Python 3.10+ (Streamlit server) | Statický Global Edge CDN (Vanilla JS + SVG) |
+| **Silné stránky** | Data science ekosystém, Plotly, editovatelná tabulka dat | Okamžité načtení (0s cold start), 60 FPS animace v reálném čase |
+| **Cena hostingu** | Zdarma (Streamlit Community Cloud) | Zdarma (Vercel Hobby) |
 
 ---
 
 ## 🚀 Jak aplikaci spustit lokálně
 
-### 1. Varianta: Streamlit (Doporučeno)
+### 1. Varianta: Streamlit
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+Aplikace se otevře na adrese `http://localhost:8501`.
 
-1. Ujistěte se, že máte nainstalovaný Python 3.9+ a knihovny:
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. Spusťte aplikaci:
-   ```bash
-   streamlit run app.py
-   ```
-3. Aplikace se automaticky otevře ve vašem prohlížeči na adrese `http://localhost:8501`.
-
-### 2. Varianta: Samostatná webová verze (Zero-install)
-Otevřete přímo soubor `index.html` v libovolném webovém prohlížeči (dvouklik na soubor). Nepotřebuje žádný server ani Python.
+### 2. Varianta: Samostatná webová verze (Vercel / Browser)
+Dvakrát klikněte na soubor `index.html` v libovolném prohlížeči – funguje okamžitě bez instalace čehokoliv.
 
 ---
 
-## 🌐 Jak aplikaci nasadit ZDARMA ONLINE
+## 🌐 Jak aplikaci nasadit online (ZDARMA)
 
-### Možnost A: Streamlit Community Cloud (Doporučeno pro Streamlit)
-1. Nahrajte tento adresář do nového veřejného repozitáře na **GitHubu** (např. `ols-regression-app`).
-2. Přejděte na [share.streamlit.io](https://share.streamlit.io) a přihlaste se přes váš GitHub účet.
-3. Klikněte na **"New app"**:
-   - **Repository:** vyberte váš repozitář
-   - **Branch:** `main` (nebo `master`)
+### 🔴 Case 1: Streamlit Community Cloud
+1. Přejděte na [share.streamlit.io](https://share.streamlit.io) a přihlaste se přes GitHub.
+2. Klikněte na **"New app"**:
+   - **Repository:** `Kilitar/OLS_Regresion_Tool`
+   - **Branch:** `main`
    - **Main file path:** `app.py`
-4. Klikněte na **"Deploy!"**.
-5. Během cca 1 minuty získáte veřejnou URL (např. `https://ols-regression.streamlit.app`), kterou můžete sdílet komukoliv na internetu!
+3. Klikněte na **"Deploy!"** – získáte stálou adresu `https://<vase-jmeno>.streamlit.app`.
 
-### Možnost B: GitHub Pages (Pro HTML verzi)
-1. V nastavení vašeho GitHub repozitáře přejděte na záložku **Settings -> Pages**.
-2. Vyberte větev `main` a složku `/ (root)`.
-3. Během okamžiku máte online veřejnou webovou stránku s `index.html`.
+### ▲ Case 2: Vercel
+1. Přejděte na [vercel.com](https://vercel.com) a přihlaste se přes GitHub.
+2. Klikněte na **"Add New..."** ➔ **"Project"**.
+3. Vyberte repozitář `OLS_Regresion_Tool` a klikněte na **"Import"**.
+4. Vercel automaticky načte konfigurační soubor `vercel.json` – není potřeba nic nastavovat.
+5. Klikněte na **"Deploy"** – během 10 sekund získáte bleskovou adresu na celosvětové CDN síti (např. `https://ols-regresion-tool.vercel.app`).
 
 ---
 
 ## 📊 Funkce aplikace
 
 - **Geometrické čtverce reziduí ($e_i^2$)**: Vizuální ukázka toho, proč se metoda nazývá metoda nejmenších *čtverců*.
-- **Posuvníky směrnice ($\beta_1$) a posunu ($\beta_0$)**: Možnost manuálního hledání optimální přímky.
-- **Tlačítko "Nastavit optimální OLS přímku"**: Okamžitě dosadí analyticky spočtené minimum.
-- **Živé metriky**:
-  - Aktuální SSE (Sum of Squared Errors)
-  - Minimální možné SSE
-  - Rozdíl od optima ($\Delta\text{SSE}$)
-  - Koeficient determinace $R^2$
-- **Různé scénáře dat**: Výchozí data, vliv odlehlé hodnoty (outlier), silná korelace, editovatelná tabulka bodů i možnost nahrát vlastní CSV.
-- **Matematické odvození**: Přehledné vysvětlení normálních rovnic a vzorců v LaTeXu.
+- **Posuvníky směrnice ($\beta_1$) a posunu ($\beta_0$)**: Manuální hledání optimální přímky s ochranou proti přetečení.
+- **Tlačítko "Nastavit optimální OLS přímku"**: Okamžitě dosadí analyticky spočtené globální minimum.
+- **Gradientní sestup (Gradient Descent)**:
+  - Volba rychlosti učení $\alpha$ (Learning Rate).
+  - Tlačítka kroků: `+1`, `+10`, `+30`, `+100`.
+  - Výpočet parciálních derivací $\frac{\partial\text{MSE}}{\partial\beta_0}$ a $\frac{\partial\text{MSE}}{\partial\beta_1}$ v reálném čase.
+  - Ochrana proti výbuchu gradientu (Exploding Gradient Guard).
+- **Křivka konvergence (Loss Curve)**: Graf vývoje MSE v čase vs. analytické minimum OLS.
+- **Přednastavené datasety a editace**: Výchozí data, vliv odlehlé hodnoty (outlier), silná závislost, editovatelná tabulka a import CSV.

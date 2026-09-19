@@ -706,24 +706,24 @@ with tab_math:
         """)
 
 with tab_deploy:
-    st.subheader("Jak nasadit tuto aplikaci online zdarma")
+    st.subheader("🌐 Duální nasazení: Streamlit Cloud i Vercel ze stejného repozitáře")
     st.markdown("""
-    Tato aplikace je kompletně připravena pro bezplatný hosting na **Streamlit Community Cloud** nebo **Hugging Face Spaces**.
+    Tento jediný GitHub repozitář podporuje současně dva různé způsoby nasazení:
 
-    #### Možnost 1: Streamlit Community Cloud (Nejjednodušší, 2 minuty)
-    1. Vytvořte si bezplatný účet na [GitHub.com](https://github.com) (pokud nemáte).
-    2. Vytvořte nový GitHub repozitář (např. `ols-regression-app`) a nahrajte do něj tyto soubory:
-       - `app.py`
-       - `requirements.txt`
-       - `.streamlit/config.toml`
-       - `README.md`
-    3. Přejděte na [share.streamlit.io](https://share.streamlit.io) a přihlaste se přes GitHub.
-    4. Klikněte na **"New app"**, vyberte váš repozitář a hlavní soubor `app.py`.
-    5. Klikněte na **"Deploy!"** – během 1 minuty dostanete veřejnou URL, kterou můžete poslat komukoliv.
+    ---
 
-    #### Možnost 2: Spuštění lokálně
-    V terminálu stačí spustit:
-    ```bash
-    streamlit run app.py
-    ```
+    ### 🔴 Case 1: Streamlit Community Cloud (Python Data Science prostředí)
+    Ideální pro Python ekosystém, Plotly grafy a interaktivní editaci dat:
+    1. Přejděte na [share.streamlit.io](https://share.streamlit.io) a přihlaste se přes GitHub.
+    2. Klikněte na **"New app"** a vyberte repozitář `Kilitar/OLS_Regresion_Tool` s hlavním souborem `app.py`.
+    3. Klikněte na **"Deploy!"** – máte funkční Python aplikaci s URL `*.streamlit.app`.
+
+    ---
+
+    ### ▲ Case 2: Vercel (Blesková Edge Web App s 0s startem)
+    Ideální pro okamžité načtení bez čekání, 60 FPS animace přímo v prohlížeči a globální CDN síť:
+    1. V repozitáři je již připraven konfigurační soubor `vercel.json` směrující na `index.html`.
+    2. Přejděte na [vercel.com](https://vercel.com) a přihlaste se přes GitHub.
+    3. Klikněte na **"Add New..."** ➔ **"Project"** a zvolte repozitář `OLS_Regresion_Tool`.
+    4. Klikněte na **"Deploy"** – během 10 sekund získáte adresu `https://ols-regresion-tool.vercel.app`.
     """)
