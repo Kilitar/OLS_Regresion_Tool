@@ -270,15 +270,16 @@ with st.sidebar:
 
     st.caption(f"Gradienty: ∂MSE/∂β₀ = `{grad_b0:+.3f}`, ∂MSE/∂β₁ = `{grad_b1:+.3f}`")
 
-    col_s1, col_s2, col_s3 = st.columns(3)
+    col_s1, col_s2, col_s3, col_s4 = st.columns(4)
     with col_s1:
-        st.button("▶️ 1 krok", on_click=lambda: step_gradient_descent(1), width="stretch")
+        st.button("▶️ +1", on_click=lambda: step_gradient_descent(1), width="stretch", help="Provést 1 krok")
     with col_s2:
-        st.button("⏩ 10 kroků", on_click=lambda: step_gradient_descent(10), width="stretch")
+        st.button("⏩ +10", on_click=lambda: step_gradient_descent(10), width="stretch", help="Provést 10 kroků")
     with col_s3:
-        st.button("⚡ 50 kroků", on_click=lambda: step_gradient_descent(50), width="stretch")
+        st.button("⚡ +30", on_click=lambda: step_gradient_descent(30), width="stretch", help="Provést 30 kroků")
+    with col_s4:
+        st.button("🚀 +100", on_click=lambda: step_gradient_descent(100), width="stretch", help="Provést 100 kroků")
 
-    animate_clicked = st.button("🎬 Animovat konvergenci (30 kroků)", width="stretch", help="Spustí živou smyčku aktualizace přímky.")
     if st.button("↺ Vynulovat iterace GD", on_click=reset_gd_only, width="stretch"):
         pass
 
@@ -310,15 +311,6 @@ with st.sidebar:
 
 st.title("📐 Metoda nejmenších čtverců & Gradientní sestup")
 st.markdown("Interaktivní simulace lineární regrese: srovnejte **analytické řešení (OLS)** s **iterativní optimalizací (Gradient Descent)**.")
-
-# Provedení animace, pokud byla spuštěna
-if animate_clicked:
-    anim_progress = st.progress(0, text="Probíhá animace gradientního sestupu...")
-    for s in range(30):
-        step_gradient_descent(1)
-        anim_progress.progress((s + 1) / 30, text=f"Iterace {st.session_state.iteration} | MSE: {st.session_state.loss_history[-1]:.4f}")
-        time.sleep(0.04)
-    st.rerun()
 
 # Příprava dat a výpočtů pro aktuální přímku
 df = st.session_state.points_df.copy()
