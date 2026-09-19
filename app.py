@@ -89,7 +89,24 @@ if "iteration" not in st.session_state:
 if "loss_history" not in st.session_state:
     st.session_state.loss_history = []
 if "learning_rate" not in st.session_state:
-    st.session_state.learning_rate = 0.02
+    st.session_state.learning_rate = 0.015
+if "diverged" not in st.session_state:
+    st.session_state.diverged = False
+
+# Automatická obnova session_state, pokud zůstala extrémní hodnota z předchozího běhu
+if abs(st.session_state.slope) > 50.0 or np.isnan(st.session_state.slope):
+    st.session_state.slope = 0.80
+    st.session_state.intercept = 1.20
+    st.session_state.iteration = 0
+    st.session_state.loss_history = []
+    st.session_state.diverged = True
+
+if abs(st.session_state.intercept) > 50.0 or np.isnan(st.session_state.intercept):
+    st.session_state.slope = 0.80
+    st.session_state.intercept = 1.20
+    st.session_state.iteration = 0
+    st.session_state.loss_history = []
+    st.session_state.diverged = True
 
 # Funkce pro analytický výpočet OLS
 def compute_ols(df: pd.DataFrame):
@@ -246,6 +263,17 @@ with st.sidebar:
     calc_max_intercept = float(np.ceil(max(st.session_state.intercept, opt_intercept) + 2.0))
     slider_min_intercept = max(-30.0, min(-5.0, calc_min_intercept))
     slider_max_intercept = min(35.0, max(10.0, calc_max_intercept))
+
+    # Ochrana před StreamlitValueAboveMaxError / BelowMinError
+    if st.session_state.slope > slider_max_slope:
+        st.session_state.slope = slider_max_slope
+    elif st.session_state.slope < slider_min_slope:
+        st.session_state.slope = slider_min_slope
+
+    if st.session_state.intercept > slider_max_intercept:
+        st.session_state.intercept = slider_max_intercept
+    elif st.session_state.intercept < slider_min_intercept:
+        st.session_state.intercept = slider_min_intercept
 
     # Posuvníky (řízené přes key v session_state)
     st.slider(
