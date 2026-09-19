@@ -52,6 +52,21 @@ st.markdown("""
     .gd-badge {
         color: #7c3aed;
     }
+    /* Fixní komfortní šířka levého postranního panelu */
+    section[data-testid="stSidebar"] {
+        min-width: 360px !important;
+        width: 360px !important;
+    }
+    /* Úprava tlačítek v sidebaru proti nechtěnému ořezu */
+    section[data-testid="stSidebar"] div[data-testid="stButton"] button {
+        padding-left: 6px !important;
+        padding-right: 6px !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stButton"] button p {
+        white-space: nowrap !important;
+        font-size: 0.88rem !important;
+        font-weight: 600 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -330,17 +345,15 @@ with st.sidebar:
 
     st.caption(f"Gradienty: ∂MSE/∂β₀ = `{grad_b0:+.2f}`, ∂MSE/∂β₁ = `{grad_b1:+.2f}`")
 
-    # Tlačítka kroků s čistým nadpisem a čísly bez zalamování
-    st.markdown("**Počet kroků (krokovat o):**")
-    col_s1, col_s2, col_s3, col_s4 = st.columns(4)
-    with col_s1:
-        st.button("+1", on_click=lambda: step_gradient_descent(1), width="stretch", help="Provést 1 krok")
-    with col_s2:
-        st.button("+10", on_click=lambda: step_gradient_descent(10), width="stretch", help="Provést 10 kroků")
-    with col_s3:
-        st.button("+30", on_click=lambda: step_gradient_descent(30), width="stretch", help="Provést 30 kroků")
-    with col_s4:
-        st.button("+100", on_click=lambda: step_gradient_descent(100), width="stretch", help="Provést 100 kroků")
+    # Tlačítka kroků přehledně ve dvou sloupcích bez jakéhokoliv ořezu
+    st.markdown("**Kroky gradientního sestupu:**")
+    col_k1, col_k2 = st.columns(2)
+    with col_k1:
+        st.button("+1 krok", on_click=lambda: step_gradient_descent(1), width="stretch")
+        st.button("+30 kroků", on_click=lambda: step_gradient_descent(30), width="stretch")
+    with col_k2:
+        st.button("+10 kroků", on_click=lambda: step_gradient_descent(10), width="stretch")
+        st.button("+100 kroků", on_click=lambda: step_gradient_descent(100), width="stretch")
 
     if st.button("↺ Vynulovat iterace GD", on_click=reset_gd_only, width="stretch"):
         pass
