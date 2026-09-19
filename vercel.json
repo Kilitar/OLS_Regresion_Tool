@@ -1,11 +1,3 @@
 {
-  "version": 2,
-  "cleanUrls": true,
-  "name": "ols-regression-tool",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
+  "cleanUrls": true
 }

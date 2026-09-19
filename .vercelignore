@@ -1,0 +1,5 @@
+# Exclude Streamlit Python files from Vercel deployment
+app.py
+requirements.txt
+.streamlit/
+code/
