@@ -113,10 +113,14 @@ if "slope" not in st.session_state:
 if "intercept" not in st.session_state:
     st.session_state.intercept = 1.20
 
-# Callbacky pro tlačítka
+# Callbacky pro tlačítka a změny stavu
 def snap_to_optimal():
     st.session_state.slope = float(np.round(opt_slope, 3))
     st.session_state.intercept = float(np.round(opt_intercept, 3))
+
+def reset_to_default():
+    st.session_state.slope = 0.80
+    st.session_state.intercept = 1.20
 
 def on_preset_change():
     selected = st.session_state.preset_choice
@@ -141,12 +145,17 @@ with st.sidebar:
     st.subheader("Parametry regresní přímky")
     st.caption(r"Rovnice: $\hat{y} = \beta_1 x + \beta_0$")
 
-    # Posuvníky
+    # Dynamické přizpůsobení mezí posuvníků podle dat a aktuální hodnoty
+    slider_min_slope = min(-3.0, float(np.floor(min(st.session_state.slope, opt_slope) - 1.0)))
+    slider_max_slope = max(4.0, float(np.ceil(max(st.session_state.slope, opt_slope) + 1.0)))
+    slider_min_intercept = min(-5.0, float(np.floor(min(st.session_state.intercept, opt_intercept) - 2.0)))
+    slider_max_intercept = max(10.0, float(np.ceil(max(st.session_state.intercept, opt_intercept) + 2.0)))
+
+    # Posuvníky (řízené přímo přes key v session_state)
     st.slider(
         "Směrnice (Slope, β₁)",
-        min_value=-2.0,
-        max_value=3.0,
-        value=float(st.session_state.slope),
+        min_value=slider_min_slope,
+        max_value=slider_max_slope,
         step=0.02,
         key="slope",
         help="Určuje sklon regresní přímky."
@@ -154,9 +163,8 @@ with st.sidebar:
 
     st.slider(
         "Posun (Intercept, β₀)",
-        min_value=-3.0,
-        max_value=8.0,
-        value=float(st.session_state.intercept),
+        min_value=slider_min_intercept,
+        max_value=slider_max_intercept,
         step=0.05,
         key="intercept",
         help="Hodnota, kde přímka protíná osu y."
@@ -166,10 +174,7 @@ with st.sidebar:
     with col_btn1:
         st.button("🎯 Nastavit OLS", on_click=snap_to_optimal, width="stretch", help="Nastaví analyticky optimální směrnici i posun.")
     with col_btn2:
-        if st.button("🔄 Reset", width="stretch", help="Vrátí výchozí hodnoty (0.80, 1.20)."):
-            st.session_state.slope = 0.80
-            st.session_state.intercept = 1.20
-            st.rerun()
+        st.button("🔄 Reset", on_click=reset_to_default, width="stretch", help="Vrátí výchozí hodnoty (0.80, 1.20).")
 
     st.divider()
     st.subheader("Možnosti zobrazení")
