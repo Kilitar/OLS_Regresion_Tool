@@ -282,12 +282,22 @@
         dBeta1 += (2 / n) * error * p.x;
       });
 
-      intercept -= learningRate * dBeta0;
-      slope -= learningRate * dBeta1;
+      const nextIntercept = intercept - learningRate * dBeta0;
+      const nextSlope = slope - learningRate * dBeta1;
+
+      // Ochrana před divergencí
+      if (Math.abs(nextIntercept) > 50 || Math.abs(nextSlope) > 30 || isNaN(nextSlope)) {
+        stopAnimation();
+        alert('⚠️ Gradientní sestup divergoval! Rychlost učení α byla příliš vysoká. Doporučeno: α <= 0.02.');
+        return;
+      }
+
+      intercept = nextIntercept;
+      slope = nextSlope;
       iteration += 1;
 
-      sliderSlope.value = slope;
-      sliderIntercept.value = intercept;
+      sliderSlope.value = Math.max(-1.5, Math.min(2.5, slope));
+      sliderIntercept.value = Math.max(-2.0, Math.min(6.0, intercept));
       render();
     }
 

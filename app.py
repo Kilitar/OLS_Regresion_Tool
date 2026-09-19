@@ -149,6 +149,7 @@ def step_gradient_descent(num_steps=1):
         init_mse = np.mean(((b1 * x + b0) - y) ** 2)
         st.session_state.loss_history.append(float(init_mse))
 
+    diverged = False
     for _ in range(num_steps):
         y_pred = b1 * x + b0
         error = y_pred - y
@@ -157,9 +158,22 @@ def step_gradient_descent(num_steps=1):
 
         b0 -= lr * d_b0
         b1 -= lr * d_b1
-        st.session_state.iteration += 1
         new_mse = np.mean(((b1 * x + b0) - y) ** 2)
+
+        # Ochrana před divergencí (výbuchem vah)
+        if np.isnan(new_mse) or np.isinf(new_mse) or abs(b0) > 100.0 or abs(b1) > 100.0 or new_mse > 1e5:
+            diverged = True
+            break
+
+        st.session_state.iteration += 1
         st.session_state.loss_history.append(float(new_mse))
+
+    if diverged:
+        st.session_state.diverged = True
+        b0 = float(np.clip(b0, -25.0, 25.0))
+        b1 = float(np.clip(b1, -20.0, 20.0))
+    else:
+        st.session_state.diverged = False
 
     st.session_state.intercept = float(np.round(b0, 4))
     st.session_state.slope = float(np.round(b1, 4))
@@ -180,16 +194,21 @@ grad_b0, grad_b1, current_mse = compute_gradients(
 def snap_to_optimal():
     st.session_state.slope = float(np.round(opt_slope, 3))
     st.session_state.intercept = float(np.round(opt_intercept, 3))
+    st.session_state.diverged = False
 
 def reset_to_default():
     st.session_state.slope = 0.80
     st.session_state.intercept = 1.20
     st.session_state.iteration = 0
     st.session_state.loss_history = []
+    st.session_state.diverged = False
 
 def reset_gd_only():
+    st.session_state.slope = 0.80
+    st.session_state.intercept = 1.20
     st.session_state.iteration = 0
     st.session_state.loss_history = []
+    st.session_state.diverged = False
 
 def on_preset_change():
     selected = st.session_state.preset_choice
@@ -200,6 +219,7 @@ def on_preset_change():
         st.session_state.intercept = float(np.round(i, 2))
         st.session_state.iteration = 0
         st.session_state.loss_history = []
+        st.session_state.diverged = False
 
 # ==================== SIDEBAR ====================
 with st.sidebar:
@@ -216,11 +236,16 @@ with st.sidebar:
     st.subheader("Parametry regresní přímky")
     st.caption(r"Rovnice: $\hat{y} = \beta_1 x + \beta_0$")
 
-    # Dynamické přizpůsobení mezí posuvníků podle dat a aktuální hodnoty
-    slider_min_slope = min(-3.0, float(np.floor(min(st.session_state.slope, opt_slope) - 1.0)))
-    slider_max_slope = max(4.0, float(np.ceil(max(st.session_state.slope, opt_slope) + 1.0)))
-    slider_min_intercept = min(-5.0, float(np.floor(min(st.session_state.intercept, opt_intercept) - 2.0)))
-    slider_max_intercept = max(10.0, float(np.ceil(max(st.session_state.intercept, opt_intercept) + 2.0)))
+    # Dynamické přizpůsobení mezí posuvníků se zastropováním proti výbuchu
+    calc_min_slope = float(np.floor(min(st.session_state.slope, opt_slope) - 1.0))
+    calc_max_slope = float(np.ceil(max(st.session_state.slope, opt_slope) + 1.0))
+    slider_min_slope = max(-20.0, min(-3.0, calc_min_slope))
+    slider_max_slope = min(20.0, max(4.0, calc_max_slope))
+
+    calc_min_intercept = float(np.floor(min(st.session_state.intercept, opt_intercept) - 2.0))
+    calc_max_intercept = float(np.ceil(max(st.session_state.intercept, opt_intercept) + 2.0))
+    slider_min_intercept = max(-30.0, min(-5.0, calc_min_intercept))
+    slider_max_intercept = min(35.0, max(10.0, calc_max_intercept))
 
     # Posuvníky (řízené přes key v session_state)
     st.slider(
@@ -255,10 +280,11 @@ with st.sidebar:
     st.slider(
         "Rychlost učení (Learning Rate, α)",
         min_value=0.001,
-        max_value=0.100,
-        step=0.005,
+        max_value=0.060,
+        step=0.001,
+        format="%.3f",
         key="learning_rate",
-        help="Velikost kroku v záporném směru gradientu."
+        help="Velikost kroku. Pozor: hodnoty α > 0.04 mohou způsobit divergenci (výbuch chyb)."
     )
 
     # Zobrazení stavu GD
@@ -311,6 +337,9 @@ with st.sidebar:
 
 st.title("📐 Metoda nejmenších čtverců & Gradientní sestup")
 st.markdown("Interaktivní simulace lineární regrese: srovnejte **analytické řešení (OLS)** s **iterativní optimalizací (Gradient Descent)**.")
+
+if st.session_state.get("diverged", False):
+    st.error("⚠️ **Gradientní sestup divergoval (Exploding Gradients)!** Rychlost učení α byla pro tato data příliš vysoká, což vedlo k přestřelení minima a nekonečnému růstu chyb. Snižte rychlost učení (např. na **α = 0.015**) a klikněte na **Reset** nebo **Nastavit OLS**.")
 
 # Příprava dat a výpočtů pro aktuální přímku
 df = st.session_state.points_df.copy()
